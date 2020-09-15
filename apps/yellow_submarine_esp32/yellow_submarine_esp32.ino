@@ -5,7 +5,7 @@
 
 // Wifi
 const char* ssid = "Jenke_Schloss";
-const char* password = "holladi4";
+const char* password = "";
 
 // UDP
 unsigned int localPort = 1234;
