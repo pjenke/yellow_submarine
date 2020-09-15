@@ -1,0 +1,21 @@
+plugins {
+    id 'application'
+}
+
+//mainClassName = '$moduleName/praktikum.aufgabe3.darstellung.Piratensimulation'
+
+repositories {
+    mavenCentral()
+}
+
+// Zum Testen wird die JUnit-Plattform verwendet
+test {
+    useJUnitPlatform()
+}
+
+dependencies {
+    // JUnit
+    implementation 'org.junit.jupiter:junit-jupiter-api:5.5.2'
+    implementation 'org.junit.jupiter:junit-jupiter-engine:5.5.2'
+    implementation 'org.junit.platform:junit-platform-launcher:1.5.1'
+}

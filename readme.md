@@ -2,6 +2,15 @@
 
 Diese Projekt beschreibt den Prozess der Konzeptionierung und (hoffentlich) Konstruktion eines ferngesteuerten U-Boots mit der Fähigkeit zum statischen Tauchen. Die Steuerung erfolgt über einen im Boot verbauten NodeMCU ESP32 Controller, der über ein Smartphone angesprochen wird. Die Fähigkeit zum statischen Tauchen wird mit einem Kolbentank umgesetzt. Alle Komponenten werden selber entworfen, ausgelegt und gebaut.
 
+## Baubericht
+
+### 15.9.2020
+
+* Arduino-Sketch zum Empfangen von UDP Nachrichten
+* Desktop-App zum Generieren von Steuerkommandos und senden als UDP-Nachricht
+
+![Desktop Fernsteuerung](doc/images/desktop_remote_control_app.png)
+
 ## Shops
 
 * [Engel Modellbau](https://engel-modellbau.eu/shop/)
@@ -29,3 +38,6 @@ Diese Projekt beschreibt den Prozess der Konzeptionierung und (hoffentlich) Kons
 ## Arduino/Programmierung
 
 * NodeMCU ESP32: Zusätzliche Boardverwalter: *https://dl.espressif.com/dl/package_esp32_index.json*
+* Send UDP package from macOS (IP: 192.168.178.61, POrt: 1234, Nachricht: "Sport")
+		echo -n "Sport" | nc -4u -w1 192.168.178.61 1234 
+* Fehler beim Upload auf Board: Boot-Taste gedrückt halten
