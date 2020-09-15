@@ -5,12 +5,24 @@
 
 // Wifi
 const char* ssid = "Jenke_Schloss";
-const char* password = "";
+const char* password = "holladi4";
+const char* hostname = "YellowSubmarine";
 
 // UDP
 unsigned int localPort = 1234;
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE];
 WiFiUDP Udp;
+
+// PWM properties (required with ESP32)
+const int freq = 30000;
+const int pwmChannel = 0;
+const int resolution = 8;
+int dutyCycle = 200;
+
+// Speed motor
+const int speedMotorPin1 = 26;
+const int speedMotorPin2 = 27;
+const int speedMotorEnablePin = 14;
 
 /**
  * Setup: Run once
@@ -30,6 +42,17 @@ void setup() {
   // UDP-Listener
   Udp.begin(localPort);
   Serial.println("UDP running");
+
+  // PWM settings
+  ledcSetup(pwmChannel, freq, resolution);
+
+  // Speed motor
+  pinMode (speedMotorPin1, OUTPUT);
+  pinMode (speedMotorPin2, OUTPUT);
+  pinMode (speedMotorEnablePin, OUTPUT);
+  ledcAttachPin(speedMotorEnablePin, pwmChannel);
+  digitalWrite(speedMotorPin1, LOW);
+  digitalWrite(speedMotorPin2, LOW);
 }
 
 /** 
@@ -37,6 +60,19 @@ void setup() {
  */
 void loop() {
   checkUDP();
+}
+
+/**
+ * Connect to the nework specified by SSID and password
+ */
+void connectToNetwork() {
+  WiFi.setHostname(hostname);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Establishing connection to WiFi..");
+  }
+  Serial.println("Connected to network");
 }
 
 /** 
@@ -56,8 +92,8 @@ void checkUDP() {
     // Extract the content via the protocoll
     int speed = ubyte2int(packetBuffer[0]);
     int sideRudder = ubyte2int(packetBuffer[1]);
-    int pitchElevator = (int)packetBuffer[2] < 128 ? (int)packetBuffer[2] : -(256 - (int)packetBuffer[2]);
-    int pressureTankOperation = (int)packetBuffer[3];
+    int pitchElevator = ubyte2int(packetBuffer[2]);
+    int pressureTankOperation = ubyte2int(packetBuffer[3]);
     
     // Debug output of the parameters
     Serial.print("speed: ");
@@ -68,6 +104,7 @@ void checkUDP() {
     Serial.println(pitchElevator);
     Serial.print("tank operation: ");
     Serial.println(pressureTankOperation);
+    setSpeed(speed);
   }
   delay(10);
 }
@@ -76,7 +113,7 @@ void checkUDP() {
  * Convert unsigned byte into int value
  */
 int ubyte2int(char data){
-  return (int)packetBuffer[1] < 128 ? (int)packetBuffer[1] : -(256 - (int)packetBuffer[1]);
+  return (int)data < 128 ? (int)data : -(256 - (int)data);
 }
 
 /** 
@@ -100,13 +137,24 @@ String translateEncryptionType(wifi_auth_mode_t encryptionType) {
 }
 
 /**
- * Connect to the nework specified by SSID and password
+ * Set speed motor according to speed. speed must be in [0,100]
  */
-void connectToNetwork() {
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Establishing connection to WiFi..");
+void setSpeed(int speed){
+  if ( abs(speed) < 10  ){
+    // Stop
+    digitalWrite(speedMotorPin1, LOW);
+    digitalWrite(speedMotorPin2, LOW);  
+    return;
   }
-  Serial.println("Connected to network");
+  if ( speed > 0 ){
+    // Forwards
+    digitalWrite(speedMotorPin1, LOW);
+    digitalWrite(speedMotorPin2, HIGH);  
+  } else {
+    // Backwards
+    digitalWrite(speedMotorPin1, HIGH);
+    digitalWrite(speedMotorPin2, LOW);    
+  }
+  int pwm = max(0,min(255,(int)(speed*2.55)));
+  ledcWrite(pwmChannel, pwm);
 }

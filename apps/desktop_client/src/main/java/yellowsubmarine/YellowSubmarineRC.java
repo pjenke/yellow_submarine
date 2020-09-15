@@ -9,6 +9,12 @@ import java.net.*;
  * Desktop remote control application, sends command via UDP to ESP32.
  */
 public class YellowSubmarineRC extends JFrame {
+
+    /**
+     * Command update interval in ms.
+     */
+    private static final int COMMAND_UPDATE_INTERVAL = 100;
+
     /**
      * IP adress of the boat esp32
      */
@@ -34,6 +40,11 @@ public class YellowSubmarineRC extends JFrame {
      */
     private PressureTankOperation pressureTankOperation;
 
+    /**
+     * This flag indicates that something has changed.
+     */
+    private boolean sendCommandRequired;
+
     public YellowSubmarineRC() {
         params[0] = 0;
         params[1] = 0;
@@ -41,6 +52,7 @@ public class YellowSubmarineRC extends JFrame {
         pressureTankOperation = PressureTankOperation.NONE;
         ip = "192.168.178.61";
         port = 1234;
+        sendCommandRequired = false;
 
         JPanel mainPanel = new JPanel();
         getContentPane().add(mainPanel);
@@ -57,6 +69,14 @@ public class YellowSubmarineRC extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(400, 200);
         setVisible(true);
+
+        /**
+         * Send update (if required) update
+         */
+        Timer timer = new Timer(COMMAND_UPDATE_INTERVAL, e -> {
+            sendCommand();
+        });
+        timer.start();
     }
 
     /**
@@ -83,7 +103,6 @@ public class YellowSubmarineRC extends JFrame {
         JButton button = new JButton("Send");
         button.addActionListener(e -> {
             String command = "";
-            System.out.println("Send (" + ip + ", " + port + "): " + makeCommandString());
             sendCommand();
         });
         panel.add(button);
@@ -94,6 +113,11 @@ public class YellowSubmarineRC extends JFrame {
      * Send command via UDP
      */
     private void sendCommand() {
+        if (!sendCommandRequired) {
+            return;
+        }
+        sendCommandRequired = false;
+
         byte[] buffer = {(byte) params[0], (byte) params[1], (byte) params[2], (byte) pressureTankOperation.ordinal()};
         byte[] IP = {-64, -88, 1, 106};
         try {
@@ -103,28 +127,25 @@ public class YellowSubmarineRC extends JFrame {
             );
             DatagramSocket datagramSocket = new DatagramSocket();
             datagramSocket.send(packet);
+            Thread.sleep(20);
         } catch (UnknownHostException e) {
             System.out.println("Error sending command: " + e.getMessage());
         } catch (SocketException e) {
             System.out.println("Error sending command: " + e.getMessage());
         } catch (IOException e) {
             System.out.println("Error sending command: " + e.getMessage());
+        } catch (InterruptedException e) {
+            System.out.println("Error sending command: " + e.getMessage());
         }
     }
 
     /**
-     * Make a command string from the current params. Used to be sent over UDP.
-     */
-    private String makeCommandString() {
-        return params[0] + " " + params[1] + " " + params[2] + " " + pressureTankOperation.toString();
-    }
-
-    /**
      * Generate a user interface for a numerical parameter with the goven index.
-     * @param index Index of the parameter.
+     *
+     * @param index   Index of the parameter.
      * @param caption Parameter description.
-     * @param min Min value for the param.
-     * @param max Max value for the param.
+     * @param min     Min value for the param.
+     * @param max     Max value for the param.
      * @return
      */
     private Component makeUI(int index, String caption, int min, int max) {
@@ -140,6 +161,7 @@ public class YellowSubmarineRC extends JFrame {
         slider.addChangeListener(e -> {
             params[index] = slider.getValue();
             label.setText(caption + " (" + params[index] + "): ");
+            sendCommandRequired = true;
         });
         return panel;
     }
@@ -160,6 +182,7 @@ public class YellowSubmarineRC extends JFrame {
         panel.add(combo);
         combo.addActionListener(e -> {
             pressureTankOperation = PressureTankOperation.valueOf(combo.getSelectedItem().toString());
+            sendCommandRequired = true;
         });
         return panel;
     }
