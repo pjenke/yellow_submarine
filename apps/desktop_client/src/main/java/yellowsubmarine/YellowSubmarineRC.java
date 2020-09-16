@@ -16,7 +16,7 @@ public class YellowSubmarineRC extends JFrame {
     private static final int COMMAND_UPDATE_INTERVAL = 100;
 
     /**
-     * IP adress of the boat esp32
+     * IP address of the boat esp32
      */
     private String ip;
 
@@ -26,19 +26,9 @@ public class YellowSubmarineRC extends JFrame {
     private int port;
 
     /**
-     * Enum for the available pressure tank operations.
+     * speed, side rudder, pitch elevator, tank motor
      */
-    private enum PressureTankOperation {IN, OUT, NONE}
-
-    /**
-     * speed, side rudder, pitch elevator
-     */
-    private int[] params = {0, 0, 0};
-
-    /**
-     * Current pressure tank operation.
-     */
-    private PressureTankOperation pressureTankOperation;
+    private final int[] params = {0, 0, 0, 0};
 
     /**
      * This flag indicates that something has changed.
@@ -49,7 +39,7 @@ public class YellowSubmarineRC extends JFrame {
         params[0] = 0;
         params[1] = 0;
         params[2] = 0;
-        pressureTankOperation = PressureTankOperation.NONE;
+        params[3] = 0;
         ip = "192.168.178.61";
         port = 1234;
         sendCommandRequired = false;
@@ -59,10 +49,10 @@ public class YellowSubmarineRC extends JFrame {
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
 
         // Custom controls
-        mainPanel.add(makeUI(0, "Speed", 0, 100));
-        mainPanel.add(makeUI(1, "Side rudder", -45, 45));
-        mainPanel.add(makeUI(2, "Pitch elevator", -45, 45));
-        mainPanel.add(makePressureTankOperationUI());
+        mainPanel.add(makeUI(0, "Speed", -100, 100));
+        mainPanel.add(makeUI(1, "Side rudder", -90, 90));
+        mainPanel.add(makeUI(2, "Pitch elevator", -90, 90));
+        mainPanel.add(makeUI(3, "Pressure tank", -100, 100));
         mainPanel.add(makeSendCommandUI());
 
         setTitle("Yellow Submarine");
@@ -70,12 +60,8 @@ public class YellowSubmarineRC extends JFrame {
         setSize(400, 200);
         setVisible(true);
 
-        /**
-         * Send update (if required) update
-         */
-        Timer timer = new Timer(COMMAND_UPDATE_INTERVAL, e -> {
-            sendCommand();
-        });
+        // Send update (if required) via UDP to ESP32
+        Timer timer = new Timer(COMMAND_UPDATE_INTERVAL, e -> sendCommand());
         timer.start();
     }
 
@@ -88,23 +74,16 @@ public class YellowSubmarineRC extends JFrame {
 
         JTextField textFieldIp = new JTextField();
         textFieldIp.setText(ip);
-        textFieldIp.addActionListener(e -> {
-            ip = textFieldIp.getText();
-        });
+        textFieldIp.addActionListener(e -> ip = textFieldIp.getText());
         panel.add(textFieldIp);
 
         JTextField textFieldPort = new JTextField();
         textFieldPort.setText("" + port);
-        textFieldPort.addActionListener(e -> {
-            port = Integer.valueOf(textFieldPort.getText());
-        });
+        textFieldPort.addActionListener(e -> port = Integer.parseInt(textFieldPort.getText()));
         panel.add(textFieldPort);
 
         JButton button = new JButton("Send");
-        button.addActionListener(e -> {
-            String command = "";
-            sendCommand();
-        });
+        button.addActionListener(e -> sendCommand());
         panel.add(button);
         return panel;
     }
@@ -118,8 +97,7 @@ public class YellowSubmarineRC extends JFrame {
         }
         sendCommandRequired = false;
 
-        byte[] buffer = {(byte) params[0], (byte) params[1], (byte) params[2], (byte) pressureTankOperation.ordinal()};
-        byte[] IP = {-64, -88, 1, 106};
+        byte[] buffer = {(byte) params[0], (byte) params[1], (byte) params[2], (byte) params[3]};
         try {
             InetAddress address = InetAddress.getByName(ip);
             DatagramPacket packet = new DatagramPacket(
@@ -128,25 +106,19 @@ public class YellowSubmarineRC extends JFrame {
             DatagramSocket datagramSocket = new DatagramSocket();
             datagramSocket.send(packet);
             Thread.sleep(20);
-        } catch (UnknownHostException e) {
-            System.out.println("Error sending command: " + e.getMessage());
-        } catch (SocketException e) {
-            System.out.println("Error sending command: " + e.getMessage());
-        } catch (IOException e) {
-            System.out.println("Error sending command: " + e.getMessage());
-        } catch (InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             System.out.println("Error sending command: " + e.getMessage());
         }
     }
 
     /**
-     * Generate a user interface for a numerical parameter with the goven index.
+     * Generate a user interface for a numerical parameter with the given index.
      *
      * @param index   Index of the parameter.
      * @param caption Parameter description.
      * @param min     Min value for the param.
      * @param max     Max value for the param.
-     * @return
+     * @return UI as a component.
      */
     private Component makeUI(int index, String caption, int min, int max) {
         JLabel label = new JLabel(caption + " (" + params[index] + "): ");
@@ -161,27 +133,6 @@ public class YellowSubmarineRC extends JFrame {
         slider.addChangeListener(e -> {
             params[index] = slider.getValue();
             label.setText(caption + " (" + params[index] + "): ");
-            sendCommandRequired = true;
-        });
-        return panel;
-    }
-
-    /**
-     * Make a user interface component for the pressure operation.
-     */
-    private Component makePressureTankOperationUI() {
-        JLabel label = new JLabel("Pressure tank operation: ");
-        JComboBox<String> combo = new JComboBox<>();
-        for (PressureTankOperation op : PressureTankOperation.values()) {
-            combo.addItem(op.toString());
-        }
-        combo.setSelectedItem(pressureTankOperation.toString());
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
-        panel.add(label);
-        panel.add(combo);
-        combo.addActionListener(e -> {
-            pressureTankOperation = PressureTankOperation.valueOf(combo.getSelectedItem().toString());
             sendCommandRequired = true;
         });
         return panel;
